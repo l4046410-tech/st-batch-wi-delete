@@ -43,10 +43,30 @@ function mockList() {
   return Object.keys(worlds).map((n, i) => ({ file_id: String(i), name: n, extensions: {} }));
 }
 
+let forbidden = 0;
+const withToken = [];
+
 function mockFetch(url, opts = {}) {
   const u = String(url);
   const body = opts.body ? JSON.parse(opts.body) : {};
   calls.push(u);
+
+  // 复现用户那台酒馆的行为：POST 没有 X-CSRF-Token 一律 403
+  const h = opts.headers || {};
+  const token = h['X-CSRF-Token'] || h['x-csrf-token'];
+  if ((opts.method || 'GET').toUpperCase() === 'POST') {
+    if (token !== 'tok') {
+      forbidden++;
+      return Promise.resolve({
+        ok: false, status: 403,
+        headers: { get: () => 'text/plain' },
+        text: () => Promise.resolve('Forbidden'),
+        json: () => Promise.reject(new Error('403')),
+      });
+    }
+    withToken.push(u);
+  }
+
   const reply = (obj) => Promise.resolve({
     ok: true, status: 200,
     headers: { get: () => 'application/json' },
@@ -156,6 +176,8 @@ check('测试书删掉 uid 4（旧的）', !('4' in worlds['测试书'].entries)
 check('兜底捞回了界面勾选的 uid 5（保留这条）', !('5' in worlds['测试书'].entries));
 check('另一本删掉 uid 1（空的）', !('1' in worlds['另一本'].entries));
 check('两本各自备份', backups >= 2, `backups=${backups}`);
+check('所有 POST 都带上了 CSRF token', forbidden === 0, `被 403 拒绝 ${forbidden} 次`);
+check('确实发生了带 token 的请求', withToken.length >= 2, `withToken=${withToken.length}`);
 
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n结果：${pass} 通过 / ${results.length - pass} 失败`);

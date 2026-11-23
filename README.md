@@ -1,6 +1,6 @@
 # 批量删除世界书条目
 
-> v1.1.1 — 世界书多选、按书分组；修复手机上勾选的条目在删除时变成「没有勾选任何条目」。
+> v1.1.2 — 修复「每本世界书都读取失败」（缺 CSRF token 导致 403）；读取优先走 ST 自己的 loadWorldInfo。
 
 SillyTavern 扩展。世界书条目多到要死的时候，能一次勾掉一堆删掉，而不是一条一条点。
 
@@ -51,6 +51,17 @@ style.css
 - 删除是二次确认，弹窗里会列出前 5 条的名称和总数
 - 只调用世界书接口（`/api/worldinfo/get`、`/api/worldinfo/edit`），不直接碰文件系统
 - 逐条 `delete data.entries[uid]` 后整体保存一次，不会出现删一半的中间状态
+
+## 如果显示「读取失败」
+
+把鼠标悬停在「读取失败」标签上会显示具体原因，控制台也会打印：
+
+```
+[batch-wi] 读取失败 <书名> HTTP 403（多半是 CSRF token 没带上）
+```
+
+插件取请求头的顺序是：`script.js` 的 `getRequestHeaders()` → `window.getRequestHeaders` → 页面里的 csrf meta。
+数据优先走 ST 自己的 `loadWorldInfo()`，失败才退回 `POST /api/worldinfo/get`。
 
 ## 兼容性
 

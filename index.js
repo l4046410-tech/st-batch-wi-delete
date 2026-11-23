@@ -25,25 +25,53 @@ let busy = false;
 
 // ---------------------------------------------------------------- 工具
 
-function headers() {
-    if (typeof window.getRequestHeaders === 'function') {
-        return window.getRequestHeaders();
+/**
+ * ST 的请求头（含 CSRF token）必须从 script.js 导入，不能靠 window 上猜。
+ * 缺了 X-CSRF-Token，服务端一律 403 —— 表现就是「每本世界书都读取失败」。
+ */
+let getHeadersFn = null;
+async function resolveHeaders() {
+    if (getHeadersFn) return getHeadersFn();
+
+    // 1) 官方来源
+    try {
+        const m = await import('../../../../script.js');
+        if (typeof m.getRequestHeaders === 'function') {
+            getHeadersFn = m.getRequestHeaders;
+            return getHeadersFn();
+        }
+    } catch (err) {
+        console.warn('[batch-wi] 无法从 script.js 取 getRequestHeaders', err);
     }
-    const h = { 'Content-Type': 'application/json' };
-    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    if (token) h['X-CSRF-Token'] = token;
-    return h;
+
+    // 2) 全局兜底
+    if (typeof window.getRequestHeaders === 'function') {
+        getHeadersFn = () => window.getRequestHeaders();
+        return getHeadersFn();
+    }
+
+    // 3) 最后：自己拼，至少带上 CSRF
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        || window.token
+        || '';
+    getHeadersFn = () => {
+        const h = { 'Content-Type': 'application/json' };
+        if (token) h['X-CSRF-Token'] = token;
+        return h;
+    };
+    return getHeadersFn();
 }
 
 async function post(url, body) {
     const res = await fetch(url, {
         method: 'POST',
-        headers: headers(),
+        headers: await resolveHeaders(),
         body: JSON.stringify(body),
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(`${url} → HTTP ${res.status} ${text.slice(0, 160)}`);
+        const hint = res.status === 403 ? '（多半是 CSRF token 没带上）' : '';
+        throw new Error(`HTTP ${res.status}${hint} ${text.slice(0, 120)}`);
     }
     const ct = res.headers.get('content-type') || '';
     return ct.includes('application/json') ? res.json() : null;
@@ -117,7 +145,23 @@ function backup(name, data) {
 // ---------------------------------------------------------------- 数据
 
 async function fetchWorldList() {
-    // 1) 优先用 list 接口
+    // 0) ST 自己维护的名单最可靠
+    try {
+        const wi = await getWiModule();
+        if (wi && Array.isArray(wi.world_names) && wi.world_names.length) {
+            return Array.from(new Set(wi.world_names.filter(Boolean)));
+        }
+        if (wi && typeof wi.getWorldInfoList === 'function') {
+            const list = await wi.getWorldInfoList();
+            if (Array.isArray(list) && list.length) {
+                return Array.from(new Set(list.map(pickName).filter(Boolean)));
+            }
+        }
+    } catch (err) {
+        console.warn('[batch-wi] 读 world_names 失败', err);
+    }
+
+    // 1) 退回 list 接口
     try {
         const list = await post('/api/worldinfo/list', {});
         if (Array.isArray(list) && list.length) {
@@ -143,20 +187,59 @@ async function fetchWorldList() {
     return Array.from(new Set(fromDom));
 }
 
+let wiModule = undefined;
+async function getWiModule() {
+    if (wiModule !== undefined) return wiModule;
+    try {
+        wiModule = await import('../../../world-info.js');
+    } catch (err) {
+        console.warn('[batch-wi] world-info.js 不可导入，改走接口', err);
+        wiModule = null;
+    }
+    return wiModule;
+}
+
 async function loadBook(name) {
     const cached = bookCache.get(name);
     if (cached && !cached.error) return cached;
+
+    const rec = { data: null, error: null };
+    const errors = [];
+
+    // 1) 首选 ST 自己的加载函数（带缓存、带正确的请求头）
+    const wi = await getWiModule();
+    for (const fn of ['loadWorldInfo', 'loadWorldInfoData']) {
+        if (wi && typeof wi[fn] === 'function') {
+            try {
+                const data = await wi[fn](name);
+                if (data && typeof data === 'object') {
+                    if (!data.entries) data.entries = {};
+                    rec.data = data;
+                    rec.error = null;
+                    bookCache.set(name, rec);
+                    return rec;
+                }
+            } catch (err) {
+                errors.push(`${fn}: ${err.message}`);
+            }
+        }
+    }
+
+    // 2) 退回直接调接口
     try {
         const data = await post('/api/worldinfo/get', { name });
-        const rec = { data: data && typeof data === 'object' ? data : { entries: {} }, error: null };
+        rec.data = data && typeof data === 'object' ? data : { entries: {} };
         if (!rec.data.entries) rec.data.entries = {};
-        bookCache.set(name, rec);
-        return rec;
+        rec.error = null;
     } catch (err) {
-        const rec = { data: null, error: err.message };
-        bookCache.set(name, rec);
-        return rec;
+        rec.data = null;
+        rec.error = err.message;
+        errors.push(err.message);
     }
+
+    if (rec.error) console.warn('[batch-wi] 读取失败', name, errors.join(' | '));
+    bookCache.set(name, rec);
+    return rec;
 }
 
 async function saveBook(name, data) {
@@ -205,7 +288,8 @@ function renderBooks() {
     $list.html(shown.map((n) => {
         const rec = bookCache.get(n);
         const count = rec?.data ? Object.keys(rec.data.entries).length : null;
-        const badge = rec?.error ? '<span class="bwd-tag bwd-off">读取失败</span>'
+        const badge = rec?.error
+            ? `<span class="bwd-tag bwd-off" title="${esc(rec.error)}">读取失败</span>`
             : (count === null ? '' : `<span class="bwd-tag bwd-n">${count}</span>`);
         return `<label class="bwd-book-row" title="${esc(n)}">
             <input type="checkbox" class="bwd-book-cb" data-book="${esc(n)}" ${selectedBooks.has(n) ? 'checked' : ''}>
