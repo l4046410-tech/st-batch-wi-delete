@@ -1,0 +1,138 @@
+/* 批量删除世界书条目 — 样式，跟着 ST 主题变量走 */
+
+.bwd-panel {
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: var(--SmartThemeBlurTintColor, transparent);
+}
+
+.bwd-title {
+    font-weight: 700;
+    font-size: 1.05em;
+    margin-bottom: 4px;
+}
+
+.bwd-hint {
+    opacity: .7;
+    font-size: .85em;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.bwd-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.bwd-row .text_pole { flex: 1 1 auto; min-width: 0; }
+
+.bwd-tools { flex-wrap: wrap; }
+.bwd-tools .menu_button { flex: 0 0 auto; }
+
+.bwd-count {
+    font-size: .85em;
+    opacity: .8;
+    margin: 6px 0 4px;
+}
+
+.bwd-table-wrap {
+    max-height: 340px;
+    overflow: auto;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+}
+
+.bwd-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .85em;
+}
+
+.bwd-tbl thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--SmartThemeBlurTintColor, #1b1b1b);
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+    white-space: nowrap;
+}
+
+.bwd-tbl td {
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(128, 128, 128, .18);
+    vertical-align: top;
+}
+
+.bwd-tbl tbody tr:hover { background: rgba(128, 128, 128, .12); }
+
+.bwd-c { width: 28px; text-align: center; }
+
+.bwd-name {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.bwd-keys {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: .75;
+}
+
+.bwd-len { width: 56px; text-align: right; opacity: .7; }
+
+.bwd-prev {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: .65;
+}
+
+.bwd-tag {
+    font-size: .75em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+.bwd-off { background: rgba(200, 80, 80, .25); }
+.bwd-const { background: rgba(80, 140, 200, .25); }
+
+.bwd-empty {
+    padding: 18px;
+    text-align: center;
+    opacity: .6;
+    font-size: .9em;
+}
+
+.bwd-footer {
+    margin-top: 8px;
+    align-items: center;
+}
+
+.bwd-danger {
+    border-color: #a33 !important;
+    color: #e66 !important;
+}
+
+.bwd-danger:hover { background: rgba(180, 60, 60, .18); }
+
+.bwd-status {
+    font-size: .82em;
+    opacity: .8;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}

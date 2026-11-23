@@ -1,0 +1,11 @@
+{
+  "display_name": "批量删除世界书条目",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "Hermes",
+  "version": "1.0.0",
+  "homePage": ""
+}

@@ -1,0 +1,14 @@
+{
+  "name": "st-batch-wi-delete",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SillyTavern extension: batch delete world info entries, with automatic backup",
+  "scripts": {
+    "test": "node test/e2e.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.0",
+    "jquery": "^3.7.1"
+  }
+}
