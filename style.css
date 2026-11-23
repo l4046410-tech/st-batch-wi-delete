@@ -136,3 +136,68 @@
     min-width: 0;
     overflow-wrap: anywhere;
 }
+
+/* ---------- v1.1：多选世界书 ---------- */
+
+.bwd-sec-title {
+    font-weight: 700;
+    font-size: .88em;
+    opacity: .85;
+    margin: 10px 0 6px;
+    padding-bottom: 3px;
+    border-bottom: 1px dashed var(--SmartThemeBorderColor, #444);
+}
+
+.bwd-book-list {
+    max-height: 190px;
+    overflow: auto;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    padding: 4px;
+    margin-bottom: 4px;
+}
+
+.bwd-book-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: .86em;
+}
+
+.bwd-book-row:hover { background: rgba(128, 128, 128, .14); }
+
+.bwd-book-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bwd-tag.bwd-n {
+    background: rgba(128, 128, 128, .22);
+    font-variant-numeric: tabular-nums;
+}
+
+.bwd-group { margin-bottom: 10px; }
+
+.bwd-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 8px;
+    background: rgba(128, 128, 128, .12);
+    border-radius: 5px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-size: .88em;
+}
+
+.bwd-group-head label { cursor: pointer; }
+
+.bwd-group-meta { opacity: .7; font-size: .92em; }

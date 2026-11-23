@@ -1,21 +1,19 @@
 /**
- * e2e.mjs — 在 jsdom 里真的跑一遍插件
+ * e2e.mjs — 在 jsdom 里真的跑一遍 v1.1（多选世界书）
  *
- * 模拟 SillyTavern：提供 #extensions_settings2、jQuery、/api/worldinfo/* 四个接口，
- * 然后把 index.js 当真脚本加载，模拟「选世界书 → 勾条目 → 点删除」，
- * 最后断言磁盘（内存）里的世界书真的少了那些条目、备份也触发了。
+ * 重点验证两件事：
+ *   1. /api/worldinfo/list 里 file_id 是数字、name 才是书名时，界面显示的是书名而不是编号
+ *   2. 能同时勾多本世界书，跨书批量删除，每本各自备份
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { JSDOM } from 'jsdom';
 import { createRequire } from 'node:module';
+import { JSDOM } from 'jsdom';
 
 const require = createRequire(import.meta.url);
+const code = fs.readFileSync(path.resolve('index.js'), 'utf8');
 
-const EXT = path.resolve('index.js');
-const code = fs.readFileSync(EXT, 'utf8');
-
-// ---------------- 模拟的世界书数据
+// ---------------- 模拟世界书
 const worlds = {
   '测试书': {
     entries: {
@@ -27,13 +25,26 @@ const worlds = {
       5: { uid: 5, comment: '保留这条', key: ['keep'], content: '重要内容', disable: false },
     },
   },
-  '另一本': { entries: { 0: { uid: 0, comment: 'X', key: ['x'], content: 'x', disable: false } } },
+  '另一本': {
+    entries: {
+      0: { uid: 0, comment: 'X', key: ['x'], content: 'x', disable: false },
+      1: { uid: 1, comment: '空的', key: [], content: '', disable: false },
+    },
+  },
 };
 
 let backups = 0;
 const calls = [];
 
-// ---------------- 模拟 fetch
+/** 关键：模拟「file_id 是数字、name 才是书名」这种版本 */
+function mockList() {
+  return Object.keys(worlds).map((n, i) => ({
+    file_id: String(i),      // 数字，像下标
+    name: n,                 // 真名字
+    extensions: {},
+  }));
+}
+
 function mockFetch(url, opts = {}) {
   const u = String(url);
   const body = opts.body ? JSON.parse(opts.body) : {};
@@ -47,9 +58,7 @@ function mockFetch(url, opts = {}) {
     text: () => Promise.resolve(JSON.stringify(obj)),
   });
 
-  if (u.endsWith('/api/worldinfo/list')) {
-    return reply(Object.keys(worlds).map((n) => ({ file_id: n, name: n })));
-  }
+  if (u.endsWith('/api/worldinfo/list')) return reply(mockList());
   if (u.endsWith('/api/worldinfo/get')) {
     const w = worlds[body.name];
     return reply(w ? structuredClone(w) : { entries: {} });
@@ -61,7 +70,7 @@ function mockFetch(url, opts = {}) {
   return Promise.reject(new Error('unexpected fetch: ' + u));
 }
 
-// ---------------- jsdom 环境
+// ---------------- jsdom
 const dom = new JSDOM(
   `<!doctype html><html><head><meta name="csrf-token" content="tok"></head>
    <body><div id="extensions_settings2"></div><div id="extensions_settings"></div></body></html>`,
@@ -70,71 +79,74 @@ const dom = new JSDOM(
 
 const { window } = dom;
 window.fetch = mockFetch;
-window.confirm = () => true;                       // 自动确认删除
+window.confirm = () => true;
 window.URL.createObjectURL = () => 'blob:fake';
 window.URL.revokeObjectURL = () => {};
-window.HTMLAnchorElement.prototype.click = function () { backups++; };  // 记录备份被触发
+window.HTMLAnchorElement.prototype.click = function () { backups++; };
 
-// jQuery 必须在 window 存在之后才 require（它会在 import 时检查 window）
 global.window = window;
 global.document = window.document;
 const $ = require('jquery');
 window.$ = window.jQuery = $;
 
-// ---------------- 加载插件（它是纯脚本，没有 import）
 window.eval(code);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 const check = (name, cond, extra = '') => {
-  results.push({ name, ok: !!cond, extra });
+  results.push({ name, ok: !!cond });
   console.log(`  ${cond ? '✔' : '✘'} ${name}${cond ? '' : ' ' + extra}`);
 };
 
-await sleep(60);   // 等 jQuery(async) 跑完
-
-console.log('\n[1] 面板是否挂载');
-check('面板出现在 #extensions_settings2', $('#bwd_root').length === 1);
-check('世界书下拉已被填充', $('#bwd_world option').length >= 3, `实际 ${$('#bwd_world option').length}`);
-
-console.log('\n[2] 选世界书 + 加载条目');
-$('#bwd_world').val('测试书').trigger('change');
-await sleep(40);
-check('表格渲染出 6 行', $('#bwd_table tbody tr').length === 6, `实际 ${$('#bwd_table tbody tr').length}`);
-check('常驻条目标记存在', $('#bwd_table').text().includes('常驻'));
-check('禁用条目标记存在', $('#bwd_table').text().includes('禁用'));
-
-console.log('\n[3] 快捷选择：空条目');
-$('#bwd_sel_empty').trigger('click');
-await sleep(10);
-check('选中 1 条空条目', $('#bwd_count').text().includes('已选 1 条'), $('#bwd_count').text());
-
-console.log('\n[4] 快捷选择：重复内容');
-$('#bwd_sel_dupe').trigger('click');
-await sleep(10);
-check('重复内容只选后 1 条（保留第一条）', $('#bwd_count').text().includes('已选 1 条'), $('#bwd_count').text());
-
-console.log('\n[5] 勾选一条 + 删除');
-$('#bwd_search').val('旧的').trigger('input');
-await sleep(10);
-check('搜索过滤到 1 行', $('#bwd_table tbody tr').length === 1, `实际 ${$('#bwd_table tbody tr').length}`);
-$('#bwd_table .bwd-cb').prop('checked', true).trigger('change');
-await sleep(10);
-
-const before = Object.keys(worlds['测试书'].entries).length;
-$('#bwd_delete').trigger('click');
 await sleep(80);
-const after = Object.keys(worlds['测试书'].entries).length;
 
-check(`世界书条目从 ${before} 减到 ${after}`, after === before - 2, `减少 ${before - after}`);
-check('uid 3（重复B）已删除', !('3' in worlds['测试书'].entries));
-check('uid 2（重复A，保留第一条）仍在', '2' in worlds['测试书'].entries);
-check('uid 1（空条目）未被删——选重复时清空了之前的选择', '1' in worlds['测试书'].entries);
-check('uid 4（旧的/禁用）已删除', !('4' in worlds['测试书'].entries));
-check('uid 0（开场）保留', '0' in worlds['测试书'].entries);
-check('uid 5（保留这条）保留', '5' in worlds['测试书'].entries);
-check('删除前触发了备份下载', backups >= 1, `backups=${backups}`);
-check('调用了 edit 接口', calls.some((u) => u.endsWith('/api/worldinfo/edit')));
+console.log('\n[1] 面板与世界书列表');
+check('面板挂载', $('#bwd_root').length === 1);
+const bookNames = $('#bwd_book_list .bwd-book-name').map((i, el) => $(el).text().trim()).get();
+check('列出了 2 本世界书', bookNames.length === 2, JSON.stringify(bookNames));
+check('显示的是书名而不是编号', bookNames.includes('测试书') && bookNames.includes('另一本'), JSON.stringify(bookNames));
+check('没有出现纯数字书名', !bookNames.some((n) => /^\d+$/.test(n)), JSON.stringify(bookNames));
+
+console.log('\n[2] 多选：勾第一本');
+await new Promise((r) => { $('.bwd-book-cb[data-book="测试书"]').prop('checked', true).trigger('change'); setTimeout(r, 80); });
+check('测试书 6 条已渲染', $('#bwd_table tbody tr').length === 6, `实际 ${$('#bwd_table tbody tr').length}`);
+check('计数显示已选 1 本', $('#bwd_count').text().includes('已选 1 本'), $('#bwd_count').text());
+
+console.log('\n[3] 多选：再勾第二本');
+await new Promise((r) => { $('.bwd-book-cb[data-book="另一本"]').prop('checked', true).trigger('change'); setTimeout(r, 80); });
+check('两个分组都出现', $('.bwd-group').length === 2, `实际 ${{}.constructor.name ? $('.bwd-group').length : 0}`);
+check('条目总数 6+2=8 行', $('#bwd_table tbody tr').length === 8, `实际 ${$('#bwd_table tbody tr').length}`);
+check('计数显示已选 2 本', $('#bwd_count').text().includes('已选 2 本'), $('#bwd_count').text());
+
+console.log('\n[4] 快捷选择「空条目」跨书生效');
+$('#bwd_sel_empty').trigger('click');
+await sleep(20);
+check('勾中 2 条空条目（两本各一条）', $('#bwd_count').text().includes('已勾 2 条'), $('#bwd_count').text());
+
+console.log('\n[5] 手工勾一条（旧条目）');
+$('#bwd_entry_search').val('旧的').trigger('input');
+await sleep(20);
+check('搜索后只剩 1 行', $('#bwd_table tbody tr').length === 1, `实际 ${$('#bwd_table tbody tr').length}`);
+$('#bwd_table .bwd-cb').prop('checked', true).trigger('change');
+await sleep(20);
+check('已勾 3 条', $('#bwd_count').text().includes('已勾 3 条'), $('#bwd_count').text());
+
+console.log('\n[6] 跨书删除');
+const beforeA = Object.keys(worlds['测试书'].entries).length;
+const beforeB = Object.keys(worlds['另一本'].entries).length;
+$('#bwd_delete').trigger('click');
+await sleep(200);
+const afterA = Object.keys(worlds['测试书'].entries).length;
+const afterB = Object.keys(worlds['另一本'].entries).length;
+
+check(`测试书 ${beforeA} → ${afterA}（删 2）`, afterA === beforeA - 2, `实际 ${afterA}`);
+check(`另一本 ${beforeB} → ${afterB}（删 1）`, afterB === beforeB - 1, `实际 ${afterB}`);
+check('测试书保留 uid 0', '0' in worlds['测试书'].entries);
+check('测试书删除 uid 1（空）', !('1' in worlds['测试书'].entries));
+check('测试书删除 uid 4（旧的）', !('4' in worlds['测试书'].entries));
+check('另一本删除 uid 1（空的）', !('1' in worlds['另一本'].entries));
+check('删除前两本各自备份', backups >= 2, `backups=${backups}`);
+check('edit 接口被调用', calls.filter((u) => u.endsWith('/edit')).length >= 1);
 
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n结果：${pass} 通过 / ${results.length - pass} 失败`);
