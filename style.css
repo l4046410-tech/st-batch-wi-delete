@@ -201,3 +201,23 @@
 .bwd-group-head label { cursor: pointer; }
 
 .bwd-group-meta { opacity: .7; font-size: .92em; }
+
+/* ---------- v2.0：整本删除 + 折叠区 ---------- */
+
+.bwd-details {
+    margin-top: 10px;
+    border-top: 1px dashed var(--SmartThemeBorderColor, #444);
+    padding-top: 8px;
+}
+
+.bwd-details > summary {
+    cursor: pointer;
+    font-size: .86em;
+    opacity: .8;
+    padding: 4px 0;
+    user-select: none;
+}
+
+.bwd-details > summary:hover { opacity: 1; }
+
+.bwd-footer .menu_button { flex: 0 0 auto; }
