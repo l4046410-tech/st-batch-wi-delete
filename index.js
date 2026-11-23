@@ -56,6 +56,13 @@ function esc(s) {
 }
 
 /** 纯数字的串大概率是下标/序号，不是文件名 */
+/** CSS.escape 在老浏览器/嵌入式 webview 里可能没有，做个兜底 */
+function cssEscape(v) {
+    const str = String(v);
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(str);
+    return str.replace(/[^a-zA-Z0-9_-]/g, (ch) => String.fromCharCode(92) + ch);
+}
+
 function looksNumeric(s) {
     return /^\d+$/.test(String(s || '').trim());
 }
@@ -207,15 +214,21 @@ function renderBooks() {
     }).join(''));
 }
 
-function renderEntries() {
+/** 只刷新计数行，不碰表格 DOM（手机上重绘会打断点击手势） */
+function updateCount() {
     const groups = groupedEntries();
-    const $t = $('#bwd_table');
-
     const totalEntries = groups.reduce((s, g) => s + g.total, 0);
     const shownEntries = groups.reduce((s, g) => s + g.rows.length, 0);
     $('#bwd_count').text(
         `已选 ${selectedBooks.size} 本 · 共 ${totalEntries} 条 · 显示 ${shownEntries} 条 · 已勾 ${selectedEntries.size} 条`
     );
+}
+
+function renderEntries() {
+    const groups = groupedEntries();
+    const $t = $('#bwd_table');
+
+    updateCount();
 
     if (!selectedBooks.size) {
         $t.html('<div class="bwd-empty">上面勾一本或多本世界书</div>');
@@ -286,10 +299,29 @@ async function refreshList() {
     renderBooks();
 }
 
+/** 以 DOM 里实际的勾选状态兜底对齐一次，防止集合与界面不同步 */
+function harvestFromDom() {
+    const boxes = document.querySelectorAll('#bwd_table .bwd-cb');
+    if (!boxes.length) return;
+    let added = 0;
+    boxes.forEach((b) => {
+        const key = b.getAttribute('data-key');
+        if (!key) return;
+        if (b.checked && !selectedEntries.has(key)) { selectedEntries.add(key); added++; }
+        if (!b.checked) selectedEntries.delete(key);
+    });
+    if (added) console.log('[batch-wi] 从界面补回', added, '条勾选');
+}
+
 async function doDelete() {
     if (busy) return;
+    harvestFromDom();
     if (!selectedEntries.size) {
-        $('#bwd_status').text('没有勾选任何条目');
+        const boxes = document.querySelectorAll('#bwd_table .bwd-cb').length;
+        $('#bwd_status').text(
+            `没有勾选任何条目（表格里有 ${boxes} 个复选框，已选 ${selectedBooks.size} 本）。` +
+            `请先勾选要删除的条目。`
+        );
         return;
     }
 
@@ -383,22 +415,27 @@ function bind() {
         renderEntries();
     });
 
+    // 勾选只更新集合与计数，绝不重绘表格 —— 重绘会让手机上的这次点击落到已销毁的节点上，
+    // 浏览器随后补发一次 change(checked=false)，一加一减就变成"什么都没选"。
     $(document).off('change.bwd', '.bwd-cb').on('change.bwd', '.bwd-cb', function () {
-        const key = $(this).data('key').toString();
+        const key = $(this).attr('data-key');
+        if (!key) return;
         if (this.checked) selectedEntries.add(key); else selectedEntries.delete(key);
-        renderEntries();
+        updateCount();
     });
 
     $(document).off('change.bwd', '.bwd-group-cb').on('change.bwd', '.bwd-group-cb', function () {
-        const book = $(this).data('book').toString();
+        const book = $(this).attr('data-book');
+        if (!book) return;
         const on = this.checked;
         const g = groupedEntries().find(x => x.book === book);
         if (!g) return;
         g.rows.forEach(({ uid }) => {
             const key = `${book}::${uid}`;
             if (on) selectedEntries.add(key); else selectedEntries.delete(key);
+            $(`.bwd-cb[data-key="${cssEscape(key)}"]`).prop('checked', on);
         });
-        renderEntries();
+        updateCount();
     });
 
     $('#bwd_sel_none').off('click').on('click', () => { selectedEntries.clear(); renderEntries(); });
