@@ -261,3 +261,67 @@
 }
 
 .bwd-drawer-sub .bwd-drawer-title { font-size: .95em; opacity: .95; }
+
+/* ---------- v2.2：跟随 ST 原生面板样式 + 手机布局 ---------- */
+
+/* 外层交给 ST 的 inline-drawer，自己不要再画边框和标题 */
+.bwd-panel {
+    border: none;
+    padding: 0;
+    background: transparent;
+}
+
+.bwd-panel > .inline-drawer { margin-bottom: 0; }
+
+/* 内层分区：标题在左、箭头在右，跟上面的 ST 面板一致 */
+.bwd-drawer-head {
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 28px;
+}
+
+.bwd-drawer-head .bwd-drawer-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bwd-caret {
+    flex: 0 0 auto;
+    width: auto;
+    margin-left: auto;
+    opacity: .6;
+    font-size: 1em;
+}
+
+.bwd-drawer-sub {
+    border-top: 1px solid var(--SmartThemeBorderColor, #444);
+    padding-top: 2px;
+    margin-top: 4px;
+}
+
+/* 按钮不再被挤成竖排 */
+.bwd-row { flex-wrap: wrap; }
+
+.bwd-row .menu_button,
+.bwd-row .text_pole {
+    white-space: nowrap;
+}
+
+.bwd-tools .menu_button { flex: 0 1 auto; }
+
+.bwd-footer .menu_button {
+    flex: 1 1 45%;
+    white-space: normal;
+    line-height: 1.25;
+}
+
+/* 窄屏：按钮整行铺满 */
+@media (max-width: 640px) {
+    .bwd-row .menu_button { flex: 1 1 100%; }
+    .bwd-footer .menu_button { flex: 1 1 100%; }
+    .bwd-tools .menu_button { flex: 1 1 calc(50% - 6px); }
+    .bwd-row .text_pole { flex: 1 1 100%; }
+}

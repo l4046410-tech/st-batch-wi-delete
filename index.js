@@ -655,19 +655,32 @@ function setDrawer($drawer, open, key) {
 }
 
 function setupDrawers() {
-    // 先用保存的状态初始化
-    setDrawer($('#bwd_drawer_root'), loadDrawerState(DRAWER_KEYS.root, true));
+    // 内层两个分区用自己实现的折叠（标题在左、箭头在右，跟 ST 面板一个样子）
     setDrawer($('#bwd_drawer_books'), loadDrawerState(DRAWER_KEYS.books, true));
     setDrawer($('#bwd_drawer_entries'), loadDrawerState(DRAWER_KEYS.entries, false));
 
     $(document).off('click.bwdDrawer', '#bwd_root .bwd-drawer-head')
         .on('click.bwdDrawer', '#bwd_root .bwd-drawer-head', function (e) {
-            // 点在按钮/输入框上时不要折叠
             if ($(e.target).closest('button, input, select, a, label').length) return;
             const $d = $(this).closest('.bwd-drawer');
-            const key = $d.attr('data-key');
-            const willOpen = !$d.hasClass('bwd-open');
-            setDrawer($d, willOpen, DRAWER_KEYS[key] || null);
+            const key = DRAWER_KEYS[$d.attr('data-key')] || null;
+            setDrawer($d, !$d.hasClass('bwd-open'), key);
+        });
+
+    // 外层用 ST 自己的 inline-drawer —— 但万一 ST 没有绑（老版本 / 面板被重建），
+    // 兜底自己切一次。判断方式：点完 30ms 后 display 有没有变化。
+    $(document).off('click.bwdRoot', '#bwd_root .inline-drawer-toggle')
+        .on('click.bwdRoot', '#bwd_root .inline-drawer-toggle', function () {
+            const $content = $('#bwd_root > .inline-drawer > .inline-drawer-content');
+            const $icon = $(this).find('.inline-drawer-icon');
+            const before = $content.css('display');
+            setTimeout(() => {
+                if ($content.css('display') === before) {
+                    const willShow = before === 'none';
+                    $content.css('display', willShow ? '' : 'none');
+                    $icon.toggleClass('down', willShow).toggleClass('up', !willShow);
+                }
+            }, 30);
         });
 }
 
@@ -676,18 +689,19 @@ function setupDrawers() {
 jQuery(async () => {
     const html = `
     <div class="bwd-panel" id="bwd_root">
-        <div class="bwd-drawer bwd-drawer-root" id="bwd_drawer_root" data-key="root">
-            <div class="bwd-drawer-head bwd-drawer-head-root">
-                <span class="bwd-caret">▾</span>
-                <span class="bwd-drawer-title">世界书批量删除</span>
+        <div class="inline-drawer">
+            <div class="inline-drawer-toggle inline-drawer-header">
+                <b>世界书批量删除</b>
+                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down ui-draggable-handle down"></div>
             </div>
-            <div class="bwd-drawer-body">
+            <div class="inline-drawer-content">
+
                 <div class="bwd-hint">勾选一本或多本世界书 → 一键删除整本。删除前会把选中的书打包成一个备份 JSON 下载。</div>
 
-                <div class="bwd-drawer bwd-drawer-sub" id="bwd_drawer_books" data-key="books">
+                <div class="bwd-drawer bwd-drawer-sub bwd-open" id="bwd_drawer_books" data-key="books">
                     <div class="bwd-drawer-head">
-                        <span class="bwd-caret">▾</span>
                         <span class="bwd-drawer-title">① 删除整本世界书</span>
+                        <span class="bwd-caret">▾</span>
                     </div>
                     <div class="bwd-drawer-body">
                         <div class="bwd-row">
@@ -709,11 +723,11 @@ jQuery(async () => {
 
                 <div class="bwd-drawer bwd-drawer-sub" id="bwd_drawer_entries" data-key="entries">
                     <div class="bwd-drawer-head">
-                        <span class="bwd-caret">▸</span>
                         <span class="bwd-drawer-title">② 只删除书里的某些条目（不删书）</span>
+                        <span class="bwd-caret">▸</span>
                     </div>
                     <div class="bwd-drawer-body">
-                        <div class="bwd-row" style="margin-top:8px">
+                        <div class="bwd-row" style="margin-top:6px">
                             <input id="bwd_entry_search" class="text_pole" type="text" placeholder="搜索条目名称 / 触发词 / 内容…">
                         </div>
                         <div class="bwd-row bwd-tools">
@@ -730,6 +744,7 @@ jQuery(async () => {
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>`;
