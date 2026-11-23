@@ -625,54 +625,119 @@ function bind() {
     $('#bwd_delete').off('click').on('click', deleteEntries);
 }
 
+// ---------------------------------------------------------------- 折叠
+
+const DRAWER_KEYS = {
+    root: 'bwd_open_root',
+    books: 'bwd_open_books',
+    entries: 'bwd_open_entries',
+};
+
+function loadDrawerState(key, fallback) {
+    try {
+        const v = window.localStorage?.getItem(key);
+        if (v === null || v === undefined) return fallback;
+        return v === '1';
+    } catch {
+        return fallback;
+    }
+}
+
+function saveDrawerState(key, open) {
+    try { window.localStorage?.setItem(key, open ? '1' : '0'); } catch { /* 隐私模式 */ }
+}
+
+function setDrawer($drawer, open, key) {
+    $drawer.toggleClass('bwd-open', open);
+    $drawer.find('> .bwd-drawer-body').toggle(open);
+    $drawer.find('> .bwd-drawer-head .bwd-caret').text(open ? '▾' : '▸');
+    if (key) saveDrawerState(key, open);
+}
+
+function setupDrawers() {
+    // 先用保存的状态初始化
+    setDrawer($('#bwd_drawer_root'), loadDrawerState(DRAWER_KEYS.root, true));
+    setDrawer($('#bwd_drawer_books'), loadDrawerState(DRAWER_KEYS.books, true));
+    setDrawer($('#bwd_drawer_entries'), loadDrawerState(DRAWER_KEYS.entries, false));
+
+    $(document).off('click.bwdDrawer', '#bwd_root .bwd-drawer-head')
+        .on('click.bwdDrawer', '#bwd_root .bwd-drawer-head', function (e) {
+            // 点在按钮/输入框上时不要折叠
+            if ($(e.target).closest('button, input, select, a, label').length) return;
+            const $d = $(this).closest('.bwd-drawer');
+            const key = $d.attr('data-key');
+            const willOpen = !$d.hasClass('bwd-open');
+            setDrawer($d, willOpen, DRAWER_KEYS[key] || null);
+        });
+}
+
 // ---------------------------------------------------------------- 安装
 
 jQuery(async () => {
     const html = `
     <div class="bwd-panel" id="bwd_root">
-        <div class="bwd-title">世界书批量删除</div>
-        <div class="bwd-hint">勾选一本或多本世界书 → 一键删除整本。删除前会把选中的书打包成一个备份 JSON 下载。</div>
-
-        <div class="bwd-sec-title">世界书（可多选）</div>
-        <div class="bwd-row">
-            <input id="bwd_book_search" class="text_pole" type="text" placeholder="筛选世界书名称…">
-            <button id="bwd_refresh" class="menu_button">刷新</button>
-        </div>
-        <div class="bwd-row bwd-tools">
-            <button id="bwd_book_all" class="menu_button">全选</button>
-            <button id="bwd_book_none" class="menu_button">清空</button>
-        </div>
-        <div id="bwd_book_list" class="bwd-book-list"></div>
-
-        <div class="bwd-row bwd-footer">
-            <button id="bwd_del_books" class="menu_button bwd-danger">删除选中的世界书</button>
-            <button id="bwd_del_all" class="menu_button bwd-danger">删除全部世界书</button>
-        </div>
-        <div id="bwd_status" class="bwd-status"></div>
-
-        <details class="bwd-details">
-            <summary>进阶：只删除书里的某些条目（不删书）</summary>
-            <div class="bwd-row" style="margin-top:8px">
-                <input id="bwd_entry_search" class="text_pole" type="text" placeholder="搜索条目名称 / 触发词 / 内容…">
+        <div class="bwd-drawer bwd-drawer-root" id="bwd_drawer_root" data-key="root">
+            <div class="bwd-drawer-head bwd-drawer-head-root">
+                <span class="bwd-caret">▾</span>
+                <span class="bwd-drawer-title">世界书批量删除</span>
             </div>
-            <div class="bwd-row bwd-tools">
-                <button id="bwd_sel_none" class="menu_button">全不选</button>
-                <button id="bwd_sel_invert" class="menu_button">反选</button>
-                <button id="bwd_sel_empty" class="menu_button">空条目</button>
-                <button id="bwd_sel_disabled" class="menu_button">已禁用</button>
-                <button id="bwd_sel_dupe" class="menu_button">重复内容</button>
+            <div class="bwd-drawer-body">
+                <div class="bwd-hint">勾选一本或多本世界书 → 一键删除整本。删除前会把选中的书打包成一个备份 JSON 下载。</div>
+
+                <div class="bwd-drawer bwd-drawer-sub" id="bwd_drawer_books" data-key="books">
+                    <div class="bwd-drawer-head">
+                        <span class="bwd-caret">▾</span>
+                        <span class="bwd-drawer-title">① 删除整本世界书</span>
+                    </div>
+                    <div class="bwd-drawer-body">
+                        <div class="bwd-row">
+                            <input id="bwd_book_search" class="text_pole" type="text" placeholder="筛选世界书名称…">
+                            <button id="bwd_refresh" class="menu_button">刷新</button>
+                        </div>
+                        <div class="bwd-row bwd-tools">
+                            <button id="bwd_book_all" class="menu_button">全选</button>
+                            <button id="bwd_book_none" class="menu_button">清空</button>
+                        </div>
+                        <div id="bwd_book_list" class="bwd-book-list"></div>
+                        <div class="bwd-row bwd-footer">
+                            <button id="bwd_del_books" class="menu_button bwd-danger">删除选中的世界书</button>
+                            <button id="bwd_del_all" class="menu_button bwd-danger">删除全部世界书</button>
+                        </div>
+                        <div id="bwd_status" class="bwd-status"></div>
+                    </div>
+                </div>
+
+                <div class="bwd-drawer bwd-drawer-sub" id="bwd_drawer_entries" data-key="entries">
+                    <div class="bwd-drawer-head">
+                        <span class="bwd-caret">▸</span>
+                        <span class="bwd-drawer-title">② 只删除书里的某些条目（不删书）</span>
+                    </div>
+                    <div class="bwd-drawer-body">
+                        <div class="bwd-row" style="margin-top:8px">
+                            <input id="bwd_entry_search" class="text_pole" type="text" placeholder="搜索条目名称 / 触发词 / 内容…">
+                        </div>
+                        <div class="bwd-row bwd-tools">
+                            <button id="bwd_sel_none" class="menu_button">全不选</button>
+                            <button id="bwd_sel_invert" class="menu_button">反选</button>
+                            <button id="bwd_sel_empty" class="menu_button">空条目</button>
+                            <button id="bwd_sel_disabled" class="menu_button">已禁用</button>
+                            <button id="bwd_sel_dupe" class="menu_button">重复内容</button>
+                        </div>
+                        <div id="bwd_count" class="bwd-count"></div>
+                        <div id="bwd_table" class="bwd-table-wrap"></div>
+                        <div class="bwd-row bwd-footer">
+                            <button id="bwd_delete" class="menu_button bwd-danger">删除选中条目</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="bwd_count" class="bwd-count"></div>
-            <div id="bwd_table" class="bwd-table-wrap"></div>
-            <div class="bwd-row bwd-footer">
-                <button id="bwd_delete" class="menu_button bwd-danger">删除选中条目</button>
-            </div>
-        </details>
+        </div>
     </div>`;
 
     const $target = $('#extensions_settings2').length ? $('#extensions_settings2') : $('#extensions_settings');
     $target.append(html);
     bind();
+    setupDrawers();
 
     $('#bwd_del_books').text('删除选中的世界书');
 

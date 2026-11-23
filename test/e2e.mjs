@@ -107,6 +107,26 @@ const bookNames = () => $('#bwd_book_list .bwd-book-name').map((i, el) => $(el).
 
 await sleep(100);
 
+console.log('\n[0] 折叠面板');
+check('三个折叠区都在', $('.bwd-drawer').length === 3, `实际 ${$('.bwd-drawer').length}`);
+check('总面板默认展开', $('#bwd_drawer_root').hasClass('bwd-open'));
+check('① 删除整本 默认展开', $('#bwd_drawer_books').hasClass('bwd-open'));
+check('② 删条目 默认收起', !$('#bwd_drawer_entries').hasClass('bwd-open'));
+check('收起时内容隐藏', $('#bwd_drawer_entries > .bwd-drawer-body').css('display') === 'none');
+
+$('#bwd_drawer_entries > .bwd-drawer-head').trigger('click');
+await sleep(20);
+check('点标题后展开', $('#bwd_drawer_entries').hasClass('bwd-open'));
+check('展开后内容可见', $('#bwd_drawer_entries > .bwd-drawer-body').css('display') !== 'none');
+check('状态写进 localStorage', window.localStorage.getItem('bwd_open_entries') === '1');
+
+$('#bwd_drawer_root > .bwd-drawer-head').trigger('click');
+await sleep(20);
+check('总面板可整体收起', !$('#bwd_drawer_root').hasClass('bwd-open'));
+$('#bwd_drawer_root > .bwd-drawer-head').trigger('click');
+await sleep(20);
+check('再点展开', $('#bwd_drawer_root').hasClass('bwd-open'));
+
 console.log('\n[1] 列表');
 check('面板挂载', $('#bwd_root').length === 1);
 check('显示 3 本，且是书名不是编号', JSON.stringify(bookNames()) === JSON.stringify(['丙书', '乙书', '甲书']) || bookNames().length === 3, JSON.stringify(bookNames()));

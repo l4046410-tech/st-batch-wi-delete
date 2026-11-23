@@ -221,3 +221,43 @@
 .bwd-details > summary:hover { opacity: 1; }
 
 .bwd-footer .menu_button { flex: 0 0 auto; }
+
+/* ---------- v2.1：折叠面板 ---------- */
+
+.bwd-drawer-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.bwd-drawer-head:hover { background: rgba(128, 128, 128, .12); }
+
+.bwd-caret {
+    width: 14px;
+    flex: 0 0 14px;
+    text-align: center;
+    opacity: .65;
+    font-size: .92em;
+}
+
+.bwd-drawer-title { font-weight: 700; }
+
+.bwd-drawer-head-root .bwd-drawer-title {
+    font-size: 1.05em;
+    letter-spacing: .2px;
+}
+
+.bwd-drawer-body { padding-top: 2px; }
+
+.bwd-drawer-sub {
+    margin-top: 6px;
+    border-top: 1px dashed var(--SmartThemeBorderColor, #444);
+    padding-top: 2px;
+}
+
+.bwd-drawer-sub .bwd-drawer-title { font-size: .95em; opacity: .95; }
