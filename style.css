@@ -325,3 +325,23 @@
     .bwd-tools .menu_button { flex: 1 1 calc(50% - 6px); }
     .bwd-row .text_pole { flex: 1 1 100%; }
 }
+
+/* 语言切换按钮：浮在折叠标题行右侧，不抢标题的位置 */
+#bwd_root .inline-drawer-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#bwd_root .bwd-title {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+#bwd_root .bwd-lang {
+    flex: 0 0 auto;
+    padding: 1px 8px;
+    font-size: 12px;
+    line-height: 1.6;
+    min-width: 0;
+    opacity: 0.85;
+}
+#bwd_root .bwd-lang:hover { opacity: 1; }

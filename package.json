@@ -1,6 +1,6 @@
 {
   "name": "st-batch-wi-delete",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
   "description": "SillyTavern 扩展：批量删除整本世界书（或书内条目），删除前自动打包备份",

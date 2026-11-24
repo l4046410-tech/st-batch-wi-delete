@@ -24,6 +24,143 @@ let bookFilter = '';
 let entryFilter = '';
 let busy = false;
 
+
+// ---------------------------------------------------------------- 中英切换
+
+const LANGS = {
+    zh: {
+        title: '世界书批量删除',
+        hint: '勾选一本或多本世界书 → 一键删除整本。删除前会把选中的书打包成一个备份 JSON 下载。',
+        sec1: '① 删除整本世界书',
+        sec2: '② 只删除书里的某些条目（不删书）',
+        searchBooks: '筛选世界书名称…',
+        searchEntries: '搜索条目名称 / 触发词 / 内容…',
+        refresh: '刷新', selectAll: '全选', clearSel: '清空',
+        delSelected: (n) => (n ? `删除选中的 ${n} 本世界书` : '删除选中的世界书'),
+        delAll: (n) => (n ? `删除全部 ${n} 本` : '删除全部世界书'),
+        selNone: '全不选', selInvert: '反选', selEmpty: '空条目',
+        selDisabled: '已禁用', selDupe: '重复内容',
+        delEntries: '删除选中条目',
+        emptyNoBooks: '没有读到世界书。点「刷新」试试。',
+        emptyNoMatchBooks: '没有匹配的世界书',
+        emptyNoMatchEntries: '没有匹配的条目',
+        tagFailed: '读取失败', tagDisabled: '禁用', tagConstant: '常驻',
+        thName: '名称', thKeys: '触发词', thWords: '字数', thPreview: '内容预览',
+        grpMeta: (shown, total) => `${shown} / ${total} 条`,
+        info: (b, t, s2, e) => `已选 ${b} 本 · 共 ${t} 条 · 显示 ${s2} 条 · 已勾 ${e} 条`,
+        needBooks: '上面勾一本或多本世界书',
+        loadingBook: (n) => `加载《${n}》…`,
+        loadedBook: (n) => `已加载《${n}》`,
+        readN: (n) => `读到 ${n} 本世界书`,
+        noBookPicked: '没有勾选世界书',
+        moreBooks: (n) => `\n…共 ${n} 本`,
+        confirmBooks: (n, preview, more) => `将删除 ${n} 本世界书（整本文件，不是其中条目）：\n${preview}${more}\n\n删除前会把这些书打包成一个备份 JSON 下载。\n不可撤销，继续？`,
+        backingUp: '备份中…',
+        backupAborted: '备份失败，已中止（没有删除任何东西）',
+        deletingBook: (n) => `删除《${n}》…`,
+        doneSummary: (ok, bad, bf, hint) => `删除完成：成功 ${ok} 本，失败 ${bad} 本。` + (bf ? `（${bf} 本备份时读取失败）` : '') + hint,
+        doneHint: ' 若酒馆列表没变，刷新页面即可。',
+        listEmpty: '列表是空的',
+        confirmAll: (n, word) => `这会删除全部 ${n} 本世界书，且不可撤销。\n删除前会打包下载一个备份 JSON。\n\n确认请输入：${word}`,
+        confirmWord: '全部删除',
+        badInput: '输入不匹配，已取消',
+        noEntryPicked: (b) => `没有勾选任何条目（已选 ${b} 本）`,
+        confirmEntries: (n, b) => `将删除 ${n} 条，涉及 ${b} 本世界书（只删条目，不删书）。继续？`,
+        bookNotLoaded: (b) => `《${b}》未加载`,
+        savingBook: (b) => `保存《${b}》…`,
+        entryDeleted: (b, n) => `《${b}》删 ${n} 条`,
+        entryFailed: (b, m) => `《${b}》失败：${m}`,
+        entryDone: (list) => `完成：${list.join('；')}`,
+        statusLoadingN: (n) => `加载 ${n} 本…`,
+        selectedN: (n) => `已选 ${n} 本`,
+        cleared: '已清空选择',
+        csrfHint: '（CSRF token 没带上）',
+        backupBooks: (n) => `世界书备份_${n}本`,
+        backupEntries: (b) => `条目备份_${b}`,
+        entryFallback: (uid) => `(条目 ${uid})`,
+        sep: '；',
+    },
+    en: {
+        title: 'World Book Bulk Delete',
+        hint: 'Tick one or more world books → delete the whole file in one click. A backup JSON of everything selected is downloaded first.',
+        sec1: '① Delete whole world books',
+        sec2: '② Delete individual entries (keeps the book)',
+        searchBooks: 'Filter world books…',
+        searchEntries: 'Search name / keywords / content…',
+        refresh: 'Refresh', selectAll: 'Select all', clearSel: 'Clear',
+        delSelected: (n) => (n ? `Delete ${n} selected` : 'Delete selected'),
+        delAll: (n) => (n ? `Delete all ${n}` : 'Delete all world books'),
+        selNone: 'Select none', selInvert: 'Invert', selEmpty: 'Empty',
+        selDisabled: 'Disabled', selDupe: 'Duplicates',
+        delEntries: 'Delete selected entries',
+        emptyNoBooks: 'No world books found. Try Refresh.',
+        emptyNoMatchBooks: 'No matching world books',
+        emptyNoMatchEntries: 'No matching entries',
+        tagFailed: 'failed', tagDisabled: 'off', tagConstant: 'const',
+        thName: 'Name', thKeys: 'Keywords', thWords: 'Chars', thPreview: 'Preview',
+        grpMeta: (shown, total) => `${shown} / ${total} entries`,
+        info: (b, t, s2, e) => `${b} books · ${t} entries · showing ${s2} · ${e} ticked`,
+        needBooks: 'Tick one or more world books above',
+        loadingBook: (n) => `Loading "${n}"…`,
+        loadedBook: (n) => `Loaded "${n}"`,
+        readN: (n) => `${n} world books`,
+        noBookPicked: 'No world books selected',
+        moreBooks: (n) => `\n…${n} books in total`,
+        confirmBooks: (n, preview, more) => `Delete ${n} world book(s) — whole files, not entries:\n${preview}${more}\n\nA single backup JSON of these books downloads first.\nThis cannot be undone. Continue?`,
+        backingUp: 'Backing up…',
+        backupAborted: 'Backup failed — nothing was deleted',
+        deletingBook: (n) => `Deleting "${n}"…`,
+        doneSummary: (ok, bad, bf, hint) => `Done: ${ok} deleted, ${bad} failed.` + (bf ? ` (${bf} unreadable for backup)` : '') + hint,
+        doneHint: ' If the list looks unchanged, refresh the page.',
+        listEmpty: 'The list is empty',
+        confirmAll: (n, word) => `This deletes all ${n} world books and cannot be undone.\nA backup JSON downloads first.\n\nType to confirm: ${word}`,
+        confirmWord: 'DELETE ALL',
+        badInput: 'Text did not match — cancelled',
+        noEntryPicked: (b) => `No entries ticked (${b} books selected)`,
+        confirmEntries: (n, b) => `Delete ${n} entries across ${b} world book(s)? The books themselves stay.`,
+        bookNotLoaded: (b) => `"${b}" not loaded`,
+        savingBook: (b) => `Saving "${b}"…`,
+        entryDeleted: (b, n) => `"${b}": ${n} deleted`,
+        entryFailed: (b, m) => `"${b}" failed: ${m}`,
+        entryDone: (list) => `Done: ${list.join('; ')}`,
+        statusLoadingN: (n) => `Loading ${n}…`,
+        selectedN: (n) => `${n} selected`,
+        cleared: 'Selection cleared',
+        csrfHint: ' (CSRF token missing)',
+        backupBooks: (n) => `worldbook_backup_${n}books`,
+        backupEntries: (b) => `entries_backup_${b}`,
+        entryFallback: (uid) => `(entry ${uid})`,
+        sep: '; ',
+    },
+};
+
+let LANG = 'zh';
+try { LANG = window.localStorage?.getItem('bwd_lang') || 'zh'; } catch { /* 隐私模式 */ }
+const L = () => LANGS[LANG] || LANGS.zh;
+
+/** 把当前语言的文案刷到所有静态控件上，再重绘动态区域 */
+function applyLang() {
+    const l = L();
+    $('#bwd_root .bwd-title').text(l.title);
+    $('#bwd_root .bwd-hint').text(l.hint);
+    $('#bwd_drawer_books .bwd-drawer-title').text(l.sec1);
+    $('#bwd_drawer_entries .bwd-drawer-title').text(l.sec2);
+    $('#bwd_book_search').attr('placeholder', l.searchBooks);
+    $('#bwd_entry_search').attr('placeholder', l.searchEntries);
+    $('#bwd_refresh').text(l.refresh);
+    $('#bwd_book_all').text(l.selectAll);
+    $('#bwd_book_none').text(l.clearSel);
+    $('#bwd_sel_none').text(l.selNone);
+    $('#bwd_sel_invert').text(l.selInvert);
+    $('#bwd_sel_empty').text(l.selEmpty);
+    $('#bwd_sel_disabled').text(l.selDisabled);
+    $('#bwd_sel_dupe').text(l.selDupe);
+    $('#bwd_delete').text(l.delEntries);
+    $('#bwd_lang').text(LANG === 'zh' ? 'EN' : '中');
+    updateBookButtons();
+    renderAll();
+}
+
 // ---------------------------------------------------------------- 基础
 
 let getHeadersFn = null;
@@ -62,7 +199,7 @@ async function post(url, body) {
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        const hint = res.status === 403 ? '（CSRF token 没带上）' : '';
+        const hint = res.status === 403 ? L().csrfHint : '';
         throw new Error(`HTTP ${res.status}${hint} ${text.slice(0, 120)}`);
     }
     const ct = res.headers.get('content-type') || '';
@@ -93,7 +230,7 @@ function entryLabel(e) {
     const name = (e.comment || '').trim();
     if (name) return name;
     const firstLine = String(e.content || '').split(/\r?\n/).find(l => l.trim());
-    return firstLine ? firstLine.trim().slice(0, 40) : `(条目 ${e.uid})`;
+    return firstLine ? firstLine.trim().slice(0, 40) : L().entryFallback(e.uid);
 }
 
 function entryKeys(e) {
@@ -235,11 +372,11 @@ function renderBooks() {
     const $list = $('#bwd_book_list');
 
     if (!all.length) {
-        $list.html('<div class="bwd-empty">没有读到世界书。点「刷新」试试。</div>');
+        $list.html(`<div class="bwd-empty">${L().emptyNoBooks}</div>`);
         return;
     }
     if (!shown.length) {
-        $list.html('<div class="bwd-empty">没有匹配的世界书</div>');
+        $list.html(`<div class="bwd-empty">${L().emptyNoMatchBooks}</div>`);
         return;
     }
 
@@ -247,7 +384,7 @@ function renderBooks() {
         const rec = bookCache.get(n);
         const count = rec?.data ? Object.keys(rec.data.entries).length : null;
         const badge = rec?.error
-            ? `<span class="bwd-tag bwd-off" title="${esc(rec.error)}">读取失败</span>`
+            ? `<span class="bwd-tag bwd-off" title="${esc(rec.error)}">${L().tagFailed}</span>`
             : (count === null ? '' : `<span class="bwd-tag bwd-n">${count}</span>`);
         return `<label class="bwd-book-row" title="${esc(n)}">
             <input type="checkbox" class="bwd-book-cb" data-book="${esc(n)}" ${selectedBooks.has(n) ? 'checked' : ''}>
@@ -260,9 +397,9 @@ function renderBooks() {
 
 function updateBookButtons() {
     const n = selectedBooks.size;
-    $('#bwd_del_books').text(n ? `删除选中的 ${n} 本世界书` : '删除选中的世界书');
+    $('#bwd_del_books').text(L().delSelected(n));
     const total = (window.__bwdBooks || []).length;
-    $('#bwd_del_all').text(total ? `删除全部 ${total} 本` : '删除全部世界书');
+    $('#bwd_del_all').text(L().delAll(total));
 }
 
 // ---------------------------------------------------------------- 渲染：条目
@@ -288,9 +425,7 @@ function updateCount() {
     const groups = groupedEntries();
     const totalEntries = groups.reduce((s, g) => s + g.total, 0);
     const shownEntries = groups.reduce((s, g) => s + g.rows.length, 0);
-    $('#bwd_count').text(
-        `已选 ${selectedBooks.size} 本 · 共 ${totalEntries} 条 · 显示 ${shownEntries} 条 · 已勾 ${selectedEntries.size} 条`
-    );
+    $('#bwd_count').text(L().info(selectedBooks.size, totalEntries, shownEntries, selectedEntries.size));
 }
 
 function renderEntries() {
@@ -299,7 +434,7 @@ function renderEntries() {
     updateCount();
 
     if (!selectedBooks.size) {
-        $t.html('<div class="bwd-empty">上面勾一本或多本世界书</div>');
+        $t.html(`<div class="bwd-empty">${L().needBooks}</div>`);
         return;
     }
 
@@ -310,8 +445,8 @@ function renderEntries() {
             const key = `${g.book}::${uid}`;
             const checked = selectedEntries.has(key) ? 'checked' : '';
             const flags = [];
-            if (e.disable) flags.push('<span class="bwd-tag bwd-off">禁用</span>');
-            if (e.constant) flags.push('<span class="bwd-tag bwd-const">常驻</span>');
+            if (e.disable) flags.push(`<span class="bwd-tag bwd-off">${L().tagDisabled}</span>`);
+            if (e.constant) flags.push(`<span class="bwd-tag bwd-const">${L().tagConstant}</span>`);
             return `<tr>
                 <td class="bwd-c"><input type="checkbox" class="bwd-cb" data-key="${esc(key)}" ${checked}></td>
                 <td class="bwd-name" title="${esc(entryLabel(e))}">${esc(entryLabel(e))} ${flags.join('')}</td>
@@ -324,16 +459,16 @@ function renderEntries() {
         parts.push(`<div class="bwd-group">
             <div class="bwd-group-head">
                 <label><input type="checkbox" class="bwd-group-cb" data-book="${esc(g.book)}"> <b>${esc(g.book)}</b></label>
-                <span class="bwd-group-meta">${g.rows.length} / ${g.total} 条</span>
+                <span class="bwd-group-meta">${L().grpMeta(g.rows.length, g.total)}</span>
             </div>
             <table class="bwd-tbl">
-                <thead><tr><th class="bwd-c"></th><th>名称</th><th>触发词</th><th>字数</th><th>内容预览</th></tr></thead>
+                <thead><tr><th class="bwd-c"></th><th>${L().thName}</th><th>${L().thKeys}</th><th>${L().thWords}</th><th>${L().thPreview}</th></tr></thead>
                 <tbody>${rows}</tbody>
             </table>
         </div>`);
     }
 
-    $t.html(parts.length ? parts.join('') : '<div class="bwd-empty">没有匹配的条目</div>');
+    $t.html(parts.length ? parts.join('') : `<div class="bwd-empty">${L().emptyNoMatchEntries}</div>`);
 }
 
 function renderAll() {
@@ -346,9 +481,9 @@ function renderAll() {
 async function toggleBook(name, on) {
     if (on) {
         selectedBooks.add(name);
-        $('#bwd_status').text(`加载《${name}》…`);
+        $('#bwd_status').text(L().loadingBook(name));
         await loadBook(name);
-        $('#bwd_status').text(`已加载《${name}》`);
+        $('#bwd_status').text(L().loadedBook(name));
     } else {
         selectedBooks.delete(name);
         for (const key of Array.from(selectedEntries)) {
@@ -361,7 +496,7 @@ async function toggleBook(name, on) {
 async function refreshList() {
     const list = await fetchWorldList();
     window.__bwdBooks = list.sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
-    $('#bwd_status').text(`读到 ${list.length} 本世界书`);
+    $('#bwd_status').text(L().readN(list.length));
     renderBooks();
 }
 
@@ -377,24 +512,21 @@ async function backupBooks(names) {
     if (!Object.keys(payload).length) {
         return { ok: false, failed };
     }
-    const ok = downloadBackup(payload, `世界书备份_${names.length}本`);
+    const ok = downloadBackup(payload, L().backupBooks(names.length));
     return { ok, failed };
 }
 
 async function deleteBooks(names, { skipConfirm = false } = {}) {
     if (busy) return;
     if (!names.length) {
-        $('#bwd_status').text('没有勾选世界书');
+        $('#bwd_status').text(L().noBookPicked);
         return;
     }
 
     if (!skipConfirm) {
         const preview = names.slice(0, 8).join('\n');
-        const more = names.length > 8 ? `\n…共 ${names.length} 本` : '';
-        const ok = window.confirm(
-            `将删除 ${names.length} 本世界书（整本文件，不是其中条目）：\n${preview}${more}\n\n` +
-            `删除前会把这些书打包成一个备份 JSON 下载。\n不可撤销，继续？`
-        );
+        const more = names.length > 8 ? L().moreBooks(names.length) : '';
+        const ok = window.confirm(L().confirmBooks(names.length, preview, more));
         if (!ok) return;
     }
 
@@ -402,16 +534,16 @@ async function deleteBooks(names, { skipConfirm = false } = {}) {
     $('#bwd_del_books, #bwd_del_all').prop('disabled', true);
 
     try {
-        $('#bwd_status').text('备份中…');
+        $('#bwd_status').text(L().backingUp);
         const backup = await backupBooks(names);
         if (!backup.ok) {
-            $('#bwd_status').text('备份失败，已中止（没有删除任何东西）');
+            $('#bwd_status').text(L().backupAborted);
             return;
         }
 
         const results = [];
         for (const name of names) {
-            $('#bwd_status').text(`删除《${name}》…`);
+            $('#bwd_status').text(L().deletingBook(name));
             try {
                 await deleteBookFile(name);
                 results.push(`✔ ${name}`);
@@ -432,12 +564,8 @@ async function deleteBooks(names, { skipConfirm = false } = {}) {
 
         const okCount = results.filter(r => r.startsWith('✔')).length;
         const bad = results.filter(r => r.startsWith('✘'));
-        $('#bwd_status').text(
-            `删除完成：成功 ${okCount} 本，失败 ${bad.length} 本。` +
-            (backup.failed.length ? `（${backup.failed.length} 本备份时读取失败）` : '') +
-            (bad.length ? ' ' + bad.slice(0, 3).join('；') : '') +
-            ' 若酒馆列表没变，刷新页面即可。'
-        );
+        const badText = bad.length ? ' ' + bad.slice(0, 3).join(L().sep) : '';
+        $('#bwd_status').text(L().doneSummary(okCount, bad.length, backup.failed.length, badText + L().doneHint));
     } finally {
         busy = false;
         $('#bwd_del_books, #bwd_del_all').prop('disabled', false);
@@ -448,17 +576,13 @@ async function deleteBooks(names, { skipConfirm = false } = {}) {
 async function deleteAllBooks() {
     const all = window.__bwdBooks || [];
     if (!all.length) {
-        $('#bwd_status').text('列表是空的');
+        $('#bwd_status').text(L().listEmpty);
         return;
     }
-    const typed = window.prompt(
-        `这会删除全部 ${all.length} 本世界书，且不可撤销。\n删除前会打包下载一个备份 JSON。\n\n` +
-        `确认请输入：全部删除`,
-        ''
-    );
+    const typed = window.prompt(L().confirmAll(all.length, L().confirmWord), '');
     if (typed === null) return;
-    if (typed.trim() !== '全部删除') {
-        $('#bwd_status').text('输入不匹配，已取消');
+    if (typed.trim() !== L().confirmWord) {
+        $('#bwd_status').text(L().badInput);
         return;
     }
     await deleteBooks(all.slice(), { skipConfirm: true });
@@ -482,7 +606,7 @@ async function deleteEntries() {
     if (busy) return;
     harvestFromDom();
     if (!selectedEntries.size) {
-        $('#bwd_status').text(`没有勾选任何条目（已选 ${selectedBooks.size} 本）`);
+        $('#bwd_status').text(L().noEntryPicked(selectedBooks.size));
         return;
     }
 
@@ -495,7 +619,7 @@ async function deleteEntries() {
         byBook.get(book).push(uid);
     }
 
-    const ok = window.confirm(`将删除 ${selectedEntries.size} 条，涉及 ${byBook.size} 本世界书（只删条目，不删书）。继续？`);
+    const ok = window.confirm(L().confirmEntries(selectedEntries.size, byBook.size));
     if (!ok) return;
 
     busy = true;
@@ -503,22 +627,22 @@ async function deleteEntries() {
         const done = [];
         for (const [book, uids] of byBook) {
             const rec = bookCache.get(book);
-            if (!rec?.data) { done.push(`《${book}》未加载`); continue; }
-            downloadBackup({ [book]: rec.data }, `条目备份_${book}`);
+            if (!rec?.data) { done.push(L().bookNotLoaded(book)); continue; }
+            downloadBackup({ [book]: rec.data }, L().backupEntries(book));
             for (const uid of uids) delete rec.data.entries[uid];
-            $('#bwd_status').text(`保存《${book}》…`);
+            $('#bwd_status').text(L().savingBook(book));
             try {
                 await saveBook(book, rec.data);
-                done.push(`《${book}》删 ${uids.length} 条`);
+                done.push(L().entryDeleted(book, uids.length));
             } catch (err) {
-                done.push(`《${book}》失败：${err.message}`);
+                done.push(L().entryFailed(book, err.message));
             }
             bookCache.delete(book);
             await loadBook(book);
         }
         selectedEntries.clear();
         renderAll();
-        $('#bwd_status').text(`完成：${done.join('；')}`);
+        $('#bwd_status').text(L().entryDone(done));
     } finally {
         busy = false;
     }
@@ -528,6 +652,15 @@ async function deleteEntries() {
 
 function bind() {
     $('#bwd_refresh').off('click').on('click', refreshList);
+
+    // 语言按钮在折叠标题行里，点它会冒泡到 inline-drawer-toggle，所以必须拦住
+    $('#bwd_lang').off('click.bwdLang').on('click.bwdLang', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        LANG = LANG === 'zh' ? 'en' : 'zh';
+        try { window.localStorage?.setItem('bwd_lang', LANG); } catch { /* 隐私模式 */ }
+        applyLang();
+    });
 
     $('#bwd_book_search').off('input').on('input', function () {
         bookFilter = ($(this).val() || '').toLowerCase();
@@ -543,9 +676,9 @@ function bind() {
         shown.forEach(n => selectedBooks.add(n));
         updateBookButtons();
         renderBooks();
-        $('#bwd_status').text(`加载 ${shown.length} 本…`);
+        $('#bwd_status').text(L().statusLoadingN(shown.length));
         await Promise.all(shown.map(loadBook));
-        $('#bwd_status').text(`已选 ${selectedBooks.size} 本`);
+        $('#bwd_status').text(L().selectedN(selectedBooks.size));
         renderEntries();
     });
 
@@ -553,7 +686,7 @@ function bind() {
         selectedBooks.clear();
         selectedEntries.clear();
         renderAll();
-        $('#bwd_status').text('已清空选择');
+        $('#bwd_status').text(L().cleared);
     });
 
     $('#bwd_del_books').off('click').on('click', () => deleteBooks(Array.from(selectedBooks)));
@@ -691,7 +824,8 @@ jQuery(async () => {
     <div class="bwd-panel" id="bwd_root">
         <div class="inline-drawer">
             <div class="inline-drawer-toggle inline-drawer-header">
-                <b>世界书批量删除</b>
+                <b class="bwd-title">世界书批量删除</b>
+                <button id="bwd_lang" class="menu_button bwd-lang" title="Switch language / 切换语言">EN</button>
                 <div class="inline-drawer-icon fa-solid fa-circle-chevron-down ui-draggable-handle down"></div>
             </div>
             <div class="inline-drawer-content">
@@ -754,7 +888,7 @@ jQuery(async () => {
     bind();
     setupDrawers();
 
-    $('#bwd_del_books').text('删除选中的世界书');
+    applyLang();
 
     await refreshList();
     renderEntries();

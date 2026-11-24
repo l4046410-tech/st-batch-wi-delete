@@ -184,6 +184,28 @@ check('走的是 edit 接口', edited.includes('丁书'));
 console.log('\n[6] 请求头');
 check('没有 POST 被 403', forbidden === 0, `forbidden=${forbidden}`);
 
+console.log('\n[7] 中英切换按钮');
+check('默认中文标题', $('#bwd_root .bwd-title').text() === '世界书批量删除', $('#bwd_root .bwd-title').text());
+check('按钮上是 EN', $('#bwd_lang').text() === 'EN', $('#bwd_lang').text());
+check('默认中文按钮', $('#bwd_refresh').text() === '刷新', $('#bwd_refresh').text());
+
+const beforeLangCollapse = $content.css('display');
+$('#bwd_lang').trigger('click');
+await sleep(100);
+check('点一下切成英文', $('#bwd_root .bwd-title').text() === 'World Book Bulk Delete', $('#bwd_root .bwd-title').text());
+check('按钮变成「中」', $('#bwd_lang').text() === '中', $('#bwd_lang').text());
+check('刷新按钮跟着切', $('#bwd_refresh').text() === 'Refresh', $('#bwd_refresh').text());
+check('危险按钮跟着切', $('#bwd_del_all').text().startsWith('Delete all'), $('#bwd_del_all').text());
+check('表头跟着切', $('#bwd_table th').eq(1).text() === 'Name', $('#bwd_table th').eq(1).text());
+check('选择记进 localStorage', window.localStorage.getItem('bwd_lang') === 'en', String(window.localStorage.getItem('bwd_lang')));
+check('点语言按钮不会顺手折叠面板', beforeLangCollapse === $content.css('display'),
+  `${beforeLangCollapse} -> ${$content.css('display')}`);
+
+$('#bwd_lang').trigger('click');
+await sleep(100);
+check('再点一下回到中文', $('#bwd_root .bwd-title').text() === '世界书批量删除', $('#bwd_root .bwd-title').text());
+check('localStorage 回到 zh', window.localStorage.getItem('bwd_lang') === 'zh', String(window.localStorage.getItem('bwd_lang')));
+
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n结果：${pass} 通过 / ${results.length - pass} 失败`);
 process.exit(pass === results.length ? 0 : 1);
