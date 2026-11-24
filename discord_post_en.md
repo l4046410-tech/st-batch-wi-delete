@@ -1,30 +1,32 @@
-**Batch-delete world books without losing them**
+**World book graveyard? Bulk-delete them without losing them**
 
-If your World Info dropdown has turned into a graveyard of half-finished lorebooks (mine reached 71), deleting them one at a time is miserable. So I wrote an extension that does it properly.
+My World Info list had 71 half-finished lorebooks. Deleting them one at a time is genuinely miserable, so I wrote a small extension.
 
-**① Delete whole world books**
-Searchable list of every book with its entry count, multi-select, one click deletes the files. A "delete everything" button requires typing a confirmation phrase — no accidental nukes.
+**Delete whole books at once**
+Searchable list, entry count on every book, multi-select, one click. There's a "delete everything" button, but it requires typing a confirmation phrase — no accidental nukes.
 
-**② Backup before anything is deleted**
-Selected books are packed into a **single JSON** and downloaded first. One file, not one-per-book: browsers only allow the first of several consecutive downloads, so the rest silently vanish.
+**Backup first, always**
+Selected books are packed into a single JSON and downloaded *before* anything is deleted. One file, not one-per-book: browsers only let the first of several consecutive downloads through, so the rest vanish silently.
 
-**③ Entry-level cleanup, when you only want to prune**
-Empty entries, disabled entries, duplicate content — quick filters, book stays intact. Same backup behaviour.
+**Prune entries when you only want to trim**
+Empty entries, disabled entries, duplicate content — quick filters, the book itself survives. Same backup behaviour.
 
-**④ Native ST drawer UI, in two languages**
-Uses SillyTavern's own `inline-drawer`, so it folds like every other settings panel and remembers its state per browser. An `EN / 中` button in the header flips every label instantly — including the delete-all confirmation phrase.
+**Chinese and English, one button**
+An `EN / 中` toggle in the panel header flips every label instantly, including the delete-all confirmation word. It remembers your choice per browser.
+
+**Looks native**
+Uses SillyTavern's own `inline-drawer`, so it folds like every other settings panel and behaves on narrow phone screens.
 
 **Install**
-Drop the folder into `public/scripts/extensions/third-party/`, enable it, Ctrl+F5. Panel is at the bottom of Extensions settings.
+Drop the folder into `public/scripts/extensions/third-party/`, enable it, Ctrl+F5. Panel sits at the bottom of Extensions settings.
 
-**How it talks to the server**
-Prefers ST's own `deleteWorldInfo()` / `saveWorldInfo()`, falls back to `/api/worldinfo/*`, and always sends the CSRF header. If an extension ever reported "failed to load" for every book, that missing `X-CSRF-Token` is usually why.
+**Under the hood**
+Prefers ST's own `deleteWorldInfo()` / `saveWorldInfo()`, falls back to `/api/worldinfo/*`, and always sends the CSRF header. If an extension ever reported "failed to load" for every single book, that missing `X-CSRF-Token` is usually why.
 
 **Honest notes**
-• Ships in Chinese **and** English — the `EN / 中` header button flips every label instantly.
-• Verified with a jsdom harness (28 assertions against a mocked ST), not every ST build. Try one unimportant book first.
-• No telemetry, no external requests. MIT.
+• Verified with a jsdom harness (40 assertions against a mocked ST), not against every ST build. Try one unimportant book first.
+• No telemetry, no network calls. MIT.
 
 **github.com/l4046410-tech/st-batch-wi-delete**
 
-Feedback welcome — especially which cleanup filters you'd actually use (long entries? unreferenced books?).
+Feedback welcome — especially which cleanup filters you'd actually use next (overlong entries? books no character card references?).
